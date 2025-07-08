@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>图片展示</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 主容器 */
+    #container {
+      width: 92vw;
+      height: 90vh;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+      /* 开场动画初始状态 */
+      opacity: 0;
+      transform: scale(0.95) rotate(2deg);
+      transition: opacity 1.5s ease-out, transform 1.5s ease-out;
+    }
+
+    #container.animate {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* 画布背景 */
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* 图片展示部分 */
+    #leftPanel {
+      width: 65%;
+      padding: 1vw;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      /* 开场动画初始状态 */
+      transform: translateX(-50px);
+      opacity: 0;
+      transition: transform 1.2s ease-out 0.2s, opacity 1.2s ease-out 0.2s;
+    }
+
+    #leftPanel.animate {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    #screenshotImage {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      cursor: pointer;
+      /* 转场动画 */
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    #screenshotImage.transition {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+
+    #rightPanel {
+      width: 35%;
+      padding: 2vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      /* 开场动画初始状态 */
+      transform: translateX(50px);
+      opacity: 0;
+      transition: transform 1.2s ease-out 0.4s, opacity 1.2s ease-out 0.4s;
+    }
+
+    #rightPanel.animate {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    #descriptionTitle {
+      width: 80%;
+      font-size: 2vw;
+      font-weight: 600;
+      color: #ff7f9f;
+      margin-bottom: 0.5vw;
+      text-align: center;
+      font-family: 'Arial', sans-serif;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 0.5vw;
+      border-radius: 8px;
+    }
+
+    #description {
+      width: 80%;
+      height: 55%;
+      padding: 1.5vw;
+      resize: none;
+      font-size: 1.5vw;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 0.5vw;
+      font-family: 'Arial', sans-serif;
+      background-color: #fffafa;
+      color: #444;
+      overflow-y: auto;
+      box-sizing: border-box;
+      text-align: center;
+      /* 转场动画 */
+      transition: opacity 0.5s ease;
+    }
+
+    #description.transition {
+      opacity: 0;
+    }
+
+    #imageInfo {
+      width: 80%;
+      font-size: 1.5vw;
+      font-weight: 600;
+      color: #ff7f9f;
+      margin: 0.5vw 0;
+      text-align: center;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 0.5vw;
+      border-radius: 8px;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 1vw;
+      margin-top: 0.5vw;
+      width: 80%;
+    }
+
+    #nextButton, #prevButton {
+      flex: 1;
+      padding: 1vw;
+      font-size: 1.5vw;
+      border-radius: 25px;
+      border: none;
+      background-color: #ff9eb0;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      text-align: center;
+      max-width: 45%;
+    }
+
+    #nextButton:hover, #prevButton:hover {
+      background-color: #ff7f9f;
+    }
+
+    #fullscreenOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+    }
+
+    #fullscreenImage {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      transition: transform 0.1s ease;
+    }
+
+    #exitFullscreenBtn {
+      position: absolute;
+      right: 2vw;
+      top: 2vw;
+      padding: 1vw 1.5vw;
+      font-size: 1.5vw;
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s ease;
+      z-index: 1002;
+    }
+
+    #exitFullscreenBtn:hover {
+      background-color: #e60000;
+    }
+
+    #fullscreenPrevBtn, #fullscreenNextBtn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 1.5vw 2vw;
+      font-size: 1.8vw;
+      background-color: #ff9eb0;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s ease;
+      z-index: 1001;
+    }
+
+    #fullscreenPrevBtn {
+      left: 2vw;
+    }
+
+    #fullscreenNextBtn {
+      right: 2vw;
+    }
+
+    #fullscreenPrevBtn:hover, #fullscreenNextBtn:hover {
+      background-color: #ff7f9f;
+    }
+
+    #fullscreenImageInfo {
+      position: absolute;
+      bottom: 2vw;
+      width: 100%;
+      text-align: center;
+      font-size: 1.8vw;
+      font-weight: 600;
+      color: #ff7f9f;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 0.5vw;
+      border-radius: 8px;
+      z-index: 1001;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="background-canvas"></canvas>
+
+<div id="container">
+  <div id="leftPanel">
+    <img id="screenshotImage" alt="截图">
+  </div>
+  <div id="rightPanel">
+    <div id="descriptionTitle">安全设备使用的注意事项</div>
+    <textarea id="description" placeholder="请输入对截图的描述..."></textarea>
+    <div id="imageInfo"></div>
+    <div class="button-container">
+      <button id="prevButton">上一张</button>
+      <button id="nextButton">下一张</button>
+    </div>
+  </div>
+</div>
+
+<div id="fullscreenOverlay">
+  <img id="fullscreenImage" alt="全屏预览">
+  <button id="fullscreenPrevBtn">上一张</button>
+  <button id="fullscreenNextBtn">下一张</button>
+  <button id="exitFullscreenBtn">退出全屏</button>
+  <div id="fullscreenImageInfo"></div>
+</div>
+
+<script>
+  const screenshots = [
+    { src: 'screenshot1.jpg', desc: '最近在安全大检查的时候，发现一个姊妹的电脑有借给外邦同事使用，并且被安装了微信。借此再提醒一下大家，咱们所有的安全设备，包括手机平板等，都是不可以借给除了教会以外的人员使用的，包括自己不信的家人和已经被清开除名的人员都是不可以外借的，以防在不知情的情况下，设备被装上不安全软件，造成神家资料泄露。如果还发现有人把安全设备外借的情况，需要写下起誓保证书并手抄安全守则一遍。' },
+    { src: 'screenshot2.jpg', desc: '在安全大检查的时候，还发现有的弟兄姊妹在听讲道或者拉线的时候，把不安全设备只是开了飞行模式就放在身边，这样是绝对不可以的，咱们听道或者拉线的时候，不管需不需要咱们开麦交通，所有的不安全设备，包括小红书专机和不安全的平板，智能手表手环等，都必须开飞行模式并关机放到距离咱们比较远的地方，坚决不能在开机的情况下放到咱身边。' },
+    { src: 'screenshot3.jpg', desc: '另外最近收到多个跟外邦人一起住的弟兄姊妹的反馈，在用蓝牙耳机听讲道或者拉线的时候，蓝夜耳机突然断电或者断开连接，一时来不及退出通话，声音一瞬间外放，同屋的外邦人就都能听到通话内容。针对这种情况，要求跟外邦人一起住的弟兄姊妹，听讲道或者拉线的时候，需要把蓝牙耳机换成有线耳机，手里没有有线耳机的弟兄姊妹，可以去附近百元店或者超市买一个。' }
+  ];
+
+  const backgroundFile = 'background.png';
+
+  const canvas = document.getElementById('background-canvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  if (backgroundFile.endsWith('.mp4')) {
+    const video = document.createElement('video');
+    video.src = backgroundFile;
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.addEventListener('play', function() {
+      function drawVideoBackground() {
+        if (!video.paused && !video.ended) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(drawVideoBackground);
+        }
+      }
+      drawVideoBackground();
+    });
+  } else if (backgroundFile.endsWith('.gif') || backgroundFile.endsWith('.png')) {
+    const img = new Image();
+    img.src = backgroundFile;
+    img.onload = function() {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+  } else {
+    console.error('不支持的文件类型');
+  }
+
+  window.addEventListener('resize', function() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (backgroundFile.endsWith('.mp4')) {
+      const video = document.querySelector('video');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    } else {
+      const img = new Image();
+      img.src = backgroundFile;
+      img.onload = function() {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+    }
+  });
+
+  // 开场动画
+  window.addEventListener('load', () => {
+    const container = document.getElementById('container');
+    const leftPanel = document.getElementById('leftPanel');
+    const rightPanel = document.getElementById('rightPanel');
+    
+    setTimeout(() => {
+      container.classList.add('animate');
+      leftPanel.classList.add('animate');
+      rightPanel.classList.add('animate');
+    }, 100);
+  });
+
+  let currentIndex = 0;
+  const img = document.getElementById('screenshotImage');
+  const desc = document.getElementById('description');
+  const nextBtn = document.getElementById('nextButton');
+  const prevBtn = document.getElementById('prevButton');
+  const imageInfo = document.getElementById('imageInfo');
+  const fullscreenOverlay = document.getElementById('fullscreenOverlay');
+  const fullscreenImage = document.getElementById('fullscreenImage');
+  const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
+  const fullscreenPrevBtn = document.getElementById('fullscreenPrevBtn');
+  const fullscreenNextBtn = document.getElementById('fullscreenNextBtn');
+  const fullscreenImageInfo = document.getElementById('fullscreenImageInfo');
+
+  screenshots.forEach(s => {
+    const image = new Image();
+    image.src = s.src;
+  });
+
+  function updateImageInfo() {
+    const infoText = `当前第 ${currentIndex + 1} 张，共 ${screenshots.length} 张`;
+    imageInfo.textContent = infoText;
+    fullscreenImageInfo.textContent = infoText;
+    
+    // 触发转场动画
+    img.classList.add('transition');
+    desc.classList.add('transition');
+    
+    setTimeout(() => {
+      img.src = screenshots[currentIndex].src;
+      desc.value = screenshots[currentIndex].desc;
+      fullscreenImage.src = screenshots[currentIndex].src;
+      img.classList.remove('transition');
+      desc.classList.remove('transition');
+    }, 500); // 与 CSS 转场时间同步
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  const switchImage = (direction) => {
+    if (direction === 'next') {
+      currentIndex = (currentIndex + 1) % screenshots.length;
+    } else {
+      currentIndex = (currentIndex - 1 + screenshots.length) % screenshots.length;
+    }
+    updateImageInfo();
+    scale = 1;
+    translateX = 0;
+    translateY = 0;
+    fullscreenImage.style.transform = 'translate(0px, 0px) scale(1)';
+  };
+
+  nextBtn.addEventListener('click', debounce(() => switchImage('next'), 600));
+  prevBtn.addEventListener('click', debounce(() => switchImage('prev'), 600));
+  fullscreenNextBtn.addEventListener('click', debounce(() => switchImage('next'), 600));
+  fullscreenPrevBtn.addEventListener('click', debounce(() => switchImage('prev'), 600));
+
+  let scale = 1;
+  let isDragging = false;
+  let startX, startY;
+  let translateX = 0, translateY = 0;
+
+  img.addEventListener('click', () => {
+    fullscreenImage.src = img.src;
+    fullscreenOverlay.style.display = 'flex';
+    updateImageInfo();
+    scale = 1;
+    translateX = 0;
+    translateY = 0;
+    fullscreenImage.style.transform = 'translate(0px, 0px) scale(1)';
+  });
+
+  exitFullscreenBtn.addEventListener('click', () => {
+    fullscreenOverlay.style.display = 'none';
+  });
+
+  fullscreenOverlay.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    scale -= delta * 0.1;
+    scale = Math.min(Math.max(0.5, scale), 5);
+    fullscreenImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+  });
+
+  fullscreenOverlay.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    isDragging = true;
+    startX = e.clientX - translateX;
+    startY = e.clientY - translateY;
+    fullscreenOverlay.style.cursor = 'grabbing';
+  });
+
+  fullscreenOverlay.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    translateX = e.clientX - startX;
+    translateY = e.clientY - startY;
+    fullscreenImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+  });
+
+  fullscreenOverlay.addEventListener('mouseup', () => {
+    isDragging = false;
+    fullscreenOverlay.style.cursor = 'grab';
+  });
+
+  fullscreenOverlay.addEventListener('mouseleave', () => {
+    isDragging = false;
+    fullscreenOverlay.style.cursor = 'grab';
+  });
+
+  fullscreenOverlay.addEventListener('dblclick', () => {
+    scale = 1;
+    translateX = 0;
+    translateY = 0;
+    fullscreenImage.style.transform = 'translate(0px, 0px) scale(1)';
+  });
+
+  updateImageInfo();
+</script>
+
+</body>
+</html>
